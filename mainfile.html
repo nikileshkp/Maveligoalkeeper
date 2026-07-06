@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penalty Shootout Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
+        
+        #game-container { position: relative; width: 800px; height: 500px; background: #22c55e; border: 4px solid #fff; overflow: hidden; }
+        
+        .goal-post { position: absolute; top: 60px; left: 150px; width: 500px; height: 180px; border: 6px solid white; border-bottom: none; }
+        #keeper { position: absolute; top: 130px; left: 365px; width: 70px; height: 100px; background: #06b6d4; border-radius: 4px; transition: left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        #aim-bar { position: absolute; top: 400px; left: 200px; width: 400px; height: 16px; background: white; border-radius: 9999px; }
+        #reticle { position: absolute; top: -4px; left: 0; width: 24px; height: 24px; background: red; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); z-index: 20; }
+        
+        #ball { position: absolute; bottom: 40px; left: 388px; width: 24px; height: 24px; background: white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); transition: all 0.5s ease-out; z-index: 10; }
+        
+        #points-display { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 1.2rem; }
+        #msg { position: absolute; top: 20px; width: 100%; text-align: center; color: white; font-weight: bold; font-size: 1.5rem; text-shadow: 1px 1px 2px black; }
+    </style>
+</head>
+<body onclick="gameAction()">
+
+    <div id="game-container">
+        <div class="goal-post"></div>
+        <div id="keeper"></div>
+        <div id="aim-bar"><div id="reticle"></div></div>
+        <div id="ball"></div>
+        <div id="msg">CLICK 1: STOP AIM (Target Locked)</div>
+        <div id="points-display">POINTS: <span id="points">100</span></div>
+    </div>
+
+    <script>
+        const reticle = document.getElementById('reticle');
+        const ball = document.getElementById('ball');
+        const keeper = document.getElementById('keeper');
+        const msg = document.getElementById('msg');
+        const pointsDisplay = document.getElementById('points');
+        
+        let gameState = 'AIMING'; 
+        let reticleX = 0;
+        let direction = 1;
+        let points = 100;
+
+        function animate() {
+            if (gameState === 'AIMING') {
+                reticleX += 8 * direction;
+                if (reticleX > 380 || reticleX < 0) direction *= -1;
+                reticle.style.left = reticleX + 'px';
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        function gameAction() {
+            if (gameState === 'AIMING') {
+                gameState = 'LOCKED';
+                msg.innerText = "CLICK 2: KICK BALL";
+            } else if (gameState === 'LOCKED') {
+                gameState = 'SHOOTING';
+                shoot();
+            } else if (gameState === 'RESET') {
+                reset();
+            }
+        }
+
+        function shoot() {
+            const targetX = 200 + reticleX;
+            
+            // Smarter Keeper Logic: 
+            // Keeper has a 30% chance to be "confused" and jump to the wrong side
+            // Otherwise, they guess the target area with slight inaccuracy.
+            const isConfused = Math.random() < 0.3;
+            const aimRatio = reticleX / 400;
+            const baseGuess = 150 + (aimRatio * 500) - 35;
+            const keeperJump = isConfused ? (Math.random() * 400 + 150) : (baseGuess + (Math.random() * 100 - 50));
+            
+            keeper.style.left = keeperJump + 'px';
+            
+            // Check for save: Keeper needs to be within reach of the ball's X position
+            // We increase the keeper's "save range" slightly, but now they won't always be perfect
+            const isSaved = Math.abs(targetX - (keeperJump + 35)) < 90;
+            
+            if (isSaved) {
+                ball.style.transition = "all 0.4s ease-out";
+                ball.style.transform = `translate(${targetX - 388}px, -150px) scale(0.6)`;
+                
+                setTimeout(() => {
+                    ball.style.transform = `translate(0, 0) scale(1)`;
+                    msg.innerText = "SAVED! Click to restart";
+                    gameState = 'RESET';
+                }, 400);
+            } else {
+                ball.style.transition = "all 0.5s ease-out";
+                ball.style.transform = `translate(${targetX - 388}px, -350px) scale(0.6)`;
+                
+                setTimeout(() => {
+                    points += 100;
+                    pointsDisplay.innerText = points;
+                    msg.innerText = "GOAL! Click to restart";
+                    gameState = 'RESET';
+                }, 500);
+            }
+        }
+
+        function reset() {
+            ball.style.transition = 'none';
+            ball.style.transform = 'translate(0,0)';
+            keeper.style.left = '365px';
+            gameState = 'AIMING';
+            msg.innerText = "CLICK 1: STOP AIM (Target Locked)";
+            setTimeout(() => { ball.style.transition = 'all 0.5s ease-out'; }, 50);
+        }
+    </script>
+</body>
+</html>
